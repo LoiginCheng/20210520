@@ -2,7 +2,7 @@
 
 This is a program demonstration project used in an article.
 
-It includes the optimal model (*.dat), sample code for building the model program, and sample data (*.xls). 
+It includes the optimal model (.dat), sample code for building the model program, and sample data (.xls). 
 
 Source code: https://github.com/LoiginCheng/20210520/
 
