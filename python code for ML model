@@ -1,0 +1,165 @@
+realData_std = Bunch(data1 = test1, data2 = test2
+            , target1 = target_O21_npa, target2 = target_O2_npa
+            , feature_names = featureNames, target_names = targetNames
+            , predfeature = test3) 
+            
+x_train0, x_test, y_train0, y_test = train_test_split(realData_std.data1, realData_std.target1
+                                                      , test_size=0.2, random_state=0, shuffle=True, stratify=None)
+x_train, x_valid, y_train, y_valid = train_test_split(x_train0, y_train0
+                                                      , test_size=0.25, random_state=0, shuffle=True, stratify=None)
+
+x_train02, x_test2, y_train02, y_test2 = train_test_split(realData_std.data2, realData_std.target2
+                                                          , test_size=0.2, random_state=0, shuffle=True, stratify=None)
+x_train2, x_valid2, y_train2, y_valid2 = train_test_split(x_train02, y_train02
+                                                          , test_size=0.25, random_state=0, shuffle=True, stratify=None)
+
+# Polynomial regression
+pfr_degree_range = np.arange(8,5,1)
+pfr_param_grid = {'degree': pfr_degree_range
+#              , 'interaction_onlybool': False, True
+#              , 'include_biasbool': True, False
+             }
+pfr_algorithm = GeneticAlgorithm() # when custom algorithm is provided random_state is ignored
+pfr_algorithm.setParameters(NP=50, nGEN=100, Ts=3, Mr=0.05, Cr=0.1)
+pfr = PolynomialFeatures()
+pfr_nia_search = NatureInspiredSearchCV(pfr
+                                    , pfr_param_grid
+                                    , cv=5
+                                    , verbose=2
+                                    , algorithm=pfr_algorithm
+                                    , population_size=50
+                                    , max_n_gen=100
+                                    , runs=3
+                                    , max_stagnating_gen=20
+#                                     , scoring='neg_mean_squared_error'
+                                    , random_state=0
+                                    , n_jobs=-1
+                                   )
+pfr_test2_1 = PolynomialFeatures(degree=2)
+X2_1 = pfr_test2_1.fit_transform(realData_std.data1)
+from sklearn.linear_model import LinearRegression
+linreg2_1 = LinearRegression()
+linreg2_1_score = cross_val_score(linreg2_1, X2_1, realData_std.target1, cv=5, scoring = "neg_mean_squared_error").mean()
+print(linreg2_1_score)
+
+pfr_test3_1 = PolynomialFeatures(degree=3)
+X3_1 = pfr_test3_1.fit_transform(realData_std.data1)
+from sklearn.linear_model import LinearRegression
+linreg3_1 = LinearRegression()
+linreg3_1_score = cross_val_score(linreg3_1, X3_1, realData_std.target1, cv=5, scoring = "neg_mean_squared_error").mean()
+print(linreg3_1_score)
+
+pfr_test4_1 = PolynomialFeatures(degree=4)
+X4_1 = pfr_test4_1.fit_transform(realData_std.data1)
+from sklearn.linear_model import LinearRegression
+linreg4_1 = LinearRegression()
+linreg4_1_score = cross_val_score(linreg4_1, X4_1, realData_std.target1, cv=5, scoring = "r2").mean()
+print(linreg4_1_score)
+
+####
+pfr = PolynomialFeatures(degree=2)
+pfr2 = PolynomialFeatures(degree=3)
+pfr_x_train = pfr.fit_transform(x_train)
+pfr_x_valid = pfr.fit_transform(x_valid)
+pfr_x_test = pfr.fit_transform(x_test)
+pfr2_x_train = pfr2.fit_transform(x_train2)
+pfr2_x_valid = pfr2.fit_transform(x_valid2)
+pfr2_x_test = pfr2.fit_transform(x_test2)
+reg_train = LinearRegression().fit(pfr_x_train, y_train)
+reg2_train = LinearRegression().fit(pfr2_x_train, y_train2)
+
+y_pred_valid = reg_train.predict(pfr_x_valid)
+y2_pred_valid = reg2_train.predict(pfr2_x_valid)
+evs_valid = explained_variance_score(y_valid, y_pred_valid)
+mape_valid = mean_absolute_percentage_error(y_valid, y_pred_valid)
+rmse_valid = mean_squared_error(y_valid, y_pred_valid, squared=False)
+r2_valid = r2_score(y_valid, y_pred_valid)
+evs2_valid = explained_variance_score(y_valid2, y2_pred_valid)
+mape2_valid = mean_absolute_percentage_error(y_valid2, y2_pred_valid)
+rmse2_valid = mean_squared_error(y_valid2, y2_pred_valid, squared=False)
+r22_valid = r2_score(y_valid2, y2_pred_valid)
+
+y_pred_test = reg_train.predict(pfr_x_test)
+y2_pred_test = reg2_train.predict(pfr2_x_test)
+evs_test = explained_variance_score(y_test, y_pred_test)
+mape_test = mean_absolute_percentage_error(y_test, y_pred_test)
+rmse_test = mean_squared_error(y_test, y_pred_test, squared=False)
+r2_test = r2_score(y_test, y_pred_test)
+evs2_test = explained_variance_score(y_test2, y2_pred_test)
+mape2_test = mean_absolute_percentage_error(y_test2, y2_pred_test)
+rmse2_test = mean_squared_error(y_test2, y2_pred_test, squared=False)
+r22_test = r2_score(y_test2, y2_pred_test)
+
+print("o21 v: evs:{:.3f}, mape:{:.3f}, rmse:{:.3f}, r2:{:.3f}".format(evs_valid, mape_valid, rmse_valid, r2_valid))
+print("o21 t: evs:{:.3f}, mape:{:.3f}, rmse:{:.3f}, r2:{:.3f}".format(evs_test, mape_test, rmse_test, r2_test))
+print("o2 v: evs:{:.3f}, mape:{:.3f}, rmse:{:.3f}, r2:{:.3f}".format(evs2_valid, mape2_valid, rmse2_valid, r22_valid))
+print("o2 t: evs:{:.3f}, mape:{:.3f}, rmse:{:.3f}, r2:{:.3f}".format(evs2_test, mape2_test, rmse2_test, r22_test))
+
+# KNN
+knn_d1t1_1 = KNeighborsRegressor(n_neighbors=49)
+knn_d1t1_2 = knn_d1t1_1.fit(realData_std.data1, realData_std.target1)
+knn_d1t1_4 = cross_val_score(knn_d1t1_2, realData_std.data1, realData_std.target1, cv=5, scoring = "neg_mean_squared_error").mean()
+knn_d1t1_5 = cross_val_score(knn_d1t1_2, realData_std.data1, realData_std.target1, cv=5, scoring = "r2").mean()
+print(knn_d1t1_4)
+print(knn_d1t1_5)
+
+knn_d1t2_param_grid = {'n_neighbors': np.arange(2,101,1)
+                       , 'weights': ["uniform", "distance"]
+                       , 'algorithm': ["ball_tree", "kd_tree", "brute"]
+                       , 'leaf_size': [10, 20, 30, 40, 50]
+                       , 'p': [2, 1]
+                       }
+                       
+algorithm = GeneticAlgorithm()                                        # when custom algorithm is provided random_state is ignored
+algorithm.setParameters(NP=50, nGEN=100, Ts=3, Mr=0.05, Cr=0.1)                       
+knn_d1t2_1 = KNeighborsRegressor(n_jobs=-1)
+knn_d1t2_2 = NatureInspiredSearchCV(knn_d1t2_1
+                                    , knn_d1t2_param_grid
+#                                     , cv=5
+                                    , verbose=2
+                                    , algorithm=algorithm
+                                    , population_size=50
+                                    , max_n_gen=100
+                                    , runs=3
+                                    , max_stagnating_gen=20
+                                    , scoring='r2'
+#                                     , random_state=0
+                                    , n_jobs=-1
+                                    )
+knn_d1t2_2.fit(realData_std.data1, realData_reg.target1)
+knn_d1t2_2.best_params_
+
+
+
+####
+
+neigh = KNeighborsRegressor(n_neighbors=2,weights='distance',algorithm='brute',leaf_size=40,p=2,n_jobs=-1)
+neigh2 = KNeighborsRegressor(n_neighbors=2,weights='distance',algorithm='ball_tree',leaf_size=70,p=2,n_jobs=-1)
+
+reg_train = neigh.fit(x_train, y_train)
+reg2_train = neigh2.fit(x_train2, y_train2)
+
+y_pred_valid = reg_train.predict(x_valid)
+y2_pred_valid = reg2_train.predict(x_valid2)
+evs_valid = explained_variance_score(y_valid, y_pred_valid)
+mape_valid = mean_absolute_percentage_error(y_valid, y_pred_valid)
+rmse_valid = mean_squared_error(y_valid, y_pred_valid, squared=False)
+r2_valid = r2_score(y_valid, y_pred_valid)
+evs2_valid = explained_variance_score(y_valid2, y2_pred_valid)
+mape2_valid = mean_absolute_percentage_error(y_valid2, y2_pred_valid)
+rmse2_valid = mean_squared_error(y_valid2, y2_pred_valid, squared=False)
+r22_valid = r2_score(y_valid2, y2_pred_valid)
+
+y_pred_test = reg_train.predict(x_test)
+y2_pred_test = reg2_train.predict(x_test2)
+evs_test = explained_variance_score(y_test, y_pred_test)
+mape_test = mean_absolute_percentage_error(y_test, y_pred_test)
+rmse_test = mean_squared_error(y_test, y_pred_test, squared=False)
+r2_test = r2_score(y_test, y_pred_test)
+evs2_test = explained_variance_score(y_test2, y2_pred_test)
+mape2_test = mean_absolute_percentage_error(y_test2, y2_pred_test)
+rmse2_test = mean_squared_error(y_test2, y2_pred_test, squared=False)
+r22_test = r2_score(y_test2, y2_pred_test)                                                        
+
+# Other
+# Please replace the method and class
