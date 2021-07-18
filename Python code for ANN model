@@ -1,0 +1,172 @@
+### make seed ###
+seed=0
+
+random.seed(seed)
+np.random.seed(seed)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(seed)
+
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+
+if seed == 0:
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+lr = 0.1
+gamma = 0.8
+epochs = 250
+bs = 512
+
+input_ = 8
+output_ = 1
+
+data_train_1 = TensorDataset(x_traintorch, y_traintorch)
+data_valid_1 = TensorDataset(x_validtorch, y_validtorch)
+data_test_1 = TensorDataset(x_testtorch, y_testtorch)
+
+data_train_2 = TensorDataset(x_train2torch, y_train2torch)
+data_valid_2 = TensorDataset(x_valid2torch, y_valid2torch)
+data_test_2 = TensorDataset(x_test2torch, y_test2torch)
+
+batchdata_train_1 = DataLoader(data_train_1
+            , batch_size = bs
+            , shuffle = True
+            , drop_last = False
+            )
+batchdata_valid_1 = DataLoader(data_valid_1, batch_size = bs, shuffle = True, drop_last = False)
+batchdata_test_1 = DataLoader(data_test_1, batch_size = bs, shuffle = True, drop_last = False)
+
+batchdata_train_2 = DataLoader(data_train_2, batch_size = bs, shuffle = True, drop_last = False)
+batchdata_valid_2 = DataLoader(data_valid_2, batch_size = bs, shuffle = True, drop_last = False)
+batchdata_test_2 = DataLoader(data_test_2, batch_size = bs, shuffle = True, drop_last = False)
+
+
+# define
+class Model2(nn.Module):
+    def __init__(self, in_features=8, aa=17, bb=11, out_features=1):
+        super().__init__()
+        self.linear1 = nn.Linear(in_features, aa, bias=True).cuda()
+        self.linear2 = nn.Linear(aa, bb, bias=True).cuda()
+        self.output = nn.Linear(bb, out_features, bias=True).cuda()
+    
+    def forward(self, x):
+        sigma1 = torch.sigmoid(self.linear1(x))
+        sigma2 = torch.sigmoid(self.linear2(sigma1))
+        return self.output(sigma2)
+
+class Model3(nn.Module):
+    def __init__(self, in_features=8, aa=17, bb=10, cc=10, out_features=1):
+        super().__init__()
+        # self.normalize= nn.BatchNorm2d(num_features=1)
+        self.linear1 = nn.Linear(in_features, aa, bias=True).cuda()
+        self.linear2 = nn.Linear(aa, bb, bias=True).cuda()
+        self.linear3 = nn.Linear(bb, cc, bias=True).cuda()
+        self.output = nn.Linear(cc, out_features, bias=True).cuda()
+    
+    def forward(self, x):
+        sigma1 = torch.sigmoid(self.linear1(x))
+        sigma2 = torch.sigmoid(self.linear2(sigma1))
+        sigma3 = torch.sigmoid(self.linear3(sigma2))
+        return self.output(sigma3)
+
+def r2(y_predict, y_true):
+    y_predict = y_predict.cpu().data.numpy()
+    y_true = y_true.cpu().data.numpy()
+    arr_true = np.array(y_true)
+    arr_pre = np.array(y_predict)
+    score = r2_score(arr_true, arr_pre)
+    return score
+
+def mape(y_predict, y_true):
+    y_predict = y_predict.cpu().data.numpy()
+    y_true = y_true.cpu().data.numpy()
+    arr_true = np.array(y_true)
+    arr_pre = np.array(y_predict)
+    score = mean_absolute_percentage_error(arr_true, arr_pre)
+    return score
+
+def evs(y_predict, y_true):
+    y_predict = y_predict.cpu().data.numpy()
+    y_true = y_true.cpu().data.numpy()
+    arr_true = np.array(y_true)
+    arr_pre = np.array(y_predict)
+    score = explained_variance_score(arr_true, arr_pre)
+    return score
+
+def rmse(y_predict, y_true):
+    y_predict = y_predict.cpu().data.numpy()
+    y_true = y_true.cpu().data.numpy()
+    arr_true = np.array(y_true)
+    arr_pre = np.array(y_predict)
+    score = mean_squared_error(arr_true, arr_pre, squared=False)
+    return score
+
+def fit_(net, batchdata_train, batchdata_valid, lr=0.01, epochs=5, gamma=0):
+    criterion = nn.MSELoss()
+    opt = optim.SGD(net.parameters(), lr=lr, momentum=gamma)
+    samples = 0
+    for epoch in range(epochs):
+        net.train()
+        rtyps = torch.tensor([], dtype = torch.float32, device=device)
+        rtys = torch.tensor([], dtype = torch.float32, device=device)
+        for batch_idx, (x, y) in list(enumerate(batchdata_train)):
+            sigma = net.forward(x)
+            rtyps = torch.cat((rtyps, torch.flatten(sigma)), 0)
+            rtys = torch.cat((rtys, y), 0)
+            loss = criterion(sigma, y.unsqueeze(1))
+            loss.backward()
+            opt.step()
+            opt.zero_grad()
+            samples = samples + x.shape[0]
+        evs_train = evs(rtyps, rtys)
+        mape_train = mape(rtyps, rtys)
+        rmse_train = rmse(rtyps, rtys)
+        r2_train = r2(rtyps, rtys)
+        net.eval()
+        rvyps = torch.tensor([], dtype = torch.float32, device=device)
+        rvys = torch.tensor([], dtype = torch.float32, device=device)
+        for batch_idx, (x, y) in list(enumerate(batchdata_valid)): 
+            sigma = net.forward(x)
+            rvyps = torch.cat((rvyps, torch.flatten(sigma)), 0)
+            rvys = torch.cat((rvys, y), 0)
+        evs_valid = evs(rvyps, rvys)
+        mape_valid = mape(rvyps, rvys)
+        rmse_valid = rmse(rvyps, rvys)
+        r2_valid = r2(rvyps, rvys)
+        if (epoch + 1) % 250 == 0:
+            print("train: evs:{:.6f}, mape:{:.6f}, rmse:{:.6f}, r2:{:.6f}".format(
+                    evs_train
+                  , mape_train
+                  , rmse_train
+                  , r2_train))
+            print("valid: evs:{:.6f}, mape:{:.6f}, rmse:{:.6f}, r2:{:.6f}".format(
+                    evs_valid
+                  , mape_valid
+                  , rmse_valid
+                  , r2_valid))
+
+# for O2
+
+for i in range(11,12,1):
+    for j in range(22,23,1):
+        for k in range(9,10,1):
+            print("网络结构：8，{:.0f}，{:.0f}，{:.0f}，1".format(i,j,k))
+            net2 = Model3(in_features=input_, aa=i ,bb=j, cc=k, out_features=output_)
+            fit_(net2, batchdata_train_2, batchdata_valid_2, lr=lr, epochs=epochs, gamma=gamma)
+            sigma2 = net2.forward(x_test2torch)
+
+            evs_test = evs(torch.flatten(sigma2), y_test2torch)
+            mape_test = mape(torch.flatten(sigma2), y_test2torch)
+            rmse_test = rmse(torch.flatten(sigma2), y_test2torch)
+            r2_test = r2(torch.flatten(sigma2), y_test2torch)
+
+            print("test: evs:{:.6f}, mape:{:.6f}, rmse:{:.6f}, r2:{:.6f}".format(
+                    evs_test
+                  , mape_test
+                  , rmse_test
+                  , r2_test))
+            print("------------------------")
