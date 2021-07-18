@@ -1,0 +1,17 @@
+scaler = StandardScaler()
+
+scaler_ft1 = scaler.fit(realData_reg.data1)
+print(scaler_ft1.mean_)
+print(scaler_ft1.var_)
+ft1Std = scaler_ft1.transform(realData_reg.data1) 
+
+scaler_ft2 = scaler.fit(realData_reg.data2)
+ft2Std = scaler_ft1.transform(realData_reg.data2)
+
+scaler_ft3 = scaler.fit(realData_reg.predfeature)
+ft3Std = scaler_ft1.transform(realData_reg.predfeature)
+
+realData_regstd = Bunch(data1 = ft1Std, data2 = ft2Std
+                     , target1 = target_O21_npa, target2 = target_O2_npa
+                     , feature_names = featureNames, target_names = targetNames
+                     , predfeature = ft3Std)
